@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+</head>
+<body>
+    <h1>Test Login Fix</h1>
+    <form id="loginForm">
+        <div>
+            <label>Username:</label>
+            <input type="text" id="username" value="testadmin" required>
+        </div>
+        <div>
+            <label>Password:</label>
+            <input type="password" id="password" value="test123" required>
+        </div>
+        <div>
+            <button type="submit">Test Admin Login</button>
+            <button type="button" onclick="testBranchManager()">Test Branch Manager</button>
+            <button type="button" onclick="testEmployee()">Test Employee</button>
+        </div>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001';
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await testLogin('/api/auth/admin/login', 'testadmin', 'test123');
+        });
+
+        async function testBranchManager() {
+            await testLogin('/api/auth/branch_manager/login', 'testmanager', 'test123');
+        }
+
+        async function testEmployee() {
+            await testLogin('/api/employees/login', 'testemployee', 'test123');
+        }
+
+        async function testLogin(endpoint, username, password) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<p>Testing ${endpoint}...</p>`;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <h3>✅ Login Successful!</h3>
+                        <p><strong>Endpoint:</strong> ${endpoint}</p>
+                        <p><strong>User:</strong> ${data.user?.fullName || 'Unknown'}</p>
+                        <p><strong>Role:</strong> ${data.user?.role || 'Unknown'}</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>❌ Login Failed</h3>
+                        <p><strong>Endpoint:</strong> ${endpoint}</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong> ${data.message || 'Unknown error'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>❌ Request Failed</h3>
+                    <p><strong>Endpoint:</strong> ${endpoint}</p>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
