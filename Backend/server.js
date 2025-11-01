@@ -48,6 +48,12 @@ app.use('/mobile/api/auth', mobileAuthRoutes);
 app.use('/mobile/api/stalls', mobileStallRoutes);
 app.use('/mobile/api/applications', mobileApplicationRoutes);
 
+// Mobile areas endpoint (separate from stalls)
+app.get('/mobile/api/areas', async (req, res) => {
+  const { getAvailableAreas } = await import('./Backend-Mobile/controllers/stall/stallController.js');
+  getAvailableAreas(req, res);
+});
+
 // ===== HEALTH CHECK =====
 app.get('/api/health', async (req, res) => {
   try {
