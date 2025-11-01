@@ -502,10 +502,15 @@ export default {
     async handleFabClick() {
       console.log('🎯 FAB clicked - checking floors and sections availability')
       console.log('🎯 Current user type:', this.currentUser?.userType)
-      console.log('🎯 Has floors and sections:', this.hasFloorsSections)
+      
+      // Do real-time check for floors and sections availability
+      console.log('🔄 Performing real-time floors/sections availability check...')
+      const hasFloorsAndSections = await this.checkFloorsAndSections()
+      this.hasFloorsSections = hasFloorsAndSections // Update cached value
+      console.log('🎯 Real-time check result:', hasFloorsAndSections)
 
       // Check if floors and sections are available
-      if (!this.hasFloorsSections) {
+      if (!hasFloorsAndSections) {
         console.log('🎯 No floors/sections - showing warning message')
         this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
       } else {
@@ -517,9 +522,15 @@ export default {
     // Add stall functions
     async openAddStallModal() {
       // For branch managers, check if floors and sections are available before allowing stall creation
-      if (this.currentUser?.userType === 'branch_manager' && !this.hasFloorsSections) {
-        this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
-        return
+      if (this.currentUser?.userType === 'branch_manager') {
+        console.log('🔄 Performing real-time floors/sections check for branch manager...')
+        const hasFloorsAndSections = await this.checkFloorsAndSections()
+        this.hasFloorsSections = hasFloorsAndSections // Update cached value
+        
+        if (!hasFloorsAndSections) {
+          this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
+          return
+        }
       }
       this.showModal = true
     },
@@ -560,6 +571,12 @@ export default {
     async handleFloorAdded(newFloorData) {
       try {
         console.log('Handling new floor data:', newFloorData)
+        
+        // Refresh floors and sections availability check
+        console.log('🔄 Refreshing floors/sections availability after floor addition...')
+        this.hasFloorsSections = await this.checkFloorsAndSections()
+        console.log('✅ Floors/sections availability updated:', this.hasFloorsSections)
+        
       } catch (error) {
         console.error('Error handling new floor:', error)
         // Only show error messages
@@ -571,6 +588,12 @@ export default {
     async handleSectionAdded(newSectionData) {
       try {
         console.log('Handling new section data:', newSectionData)
+        
+        // Refresh floors and sections availability check
+        console.log('🔄 Refreshing floors/sections availability after section addition...')
+        this.hasFloorsSections = await this.checkFloorsAndSections()
+        console.log('✅ Floors/sections availability updated:', this.hasFloorsSections)
+        
       } catch (error) {
         console.error('Error handling new section:', error)
         // Only show error messages
