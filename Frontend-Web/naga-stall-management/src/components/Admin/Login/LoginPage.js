@@ -1,5 +1,5 @@
 import axios from 'axios'
-import ErrorPopup from '../../Common/ErrorPopup/ErrorPopup.vue'
+import UniversalPopup from '../../Common/UniversalPopup/UniversalPopup.vue'
 
 // Use environment variable for API base URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 export default {
   name: 'LoginPage',
   components: {
-    ErrorPopup,
+    UniversalPopup,
   },
   data() {
     return {
@@ -22,6 +22,14 @@ export default {
       errorMessage: '',
       loadingText: 'Authenticating',
       loadingSubtext: 'Verifying your credentials',
+      // Universal popup for errors
+      errorPopup: {
+        show: false,
+        message: '',
+        type: 'error',
+        operation: 'login',
+        operationType: 'user',
+      },
       usernameRules: [
         (v) => !!v || 'Username is required',
         (v) => (v && v.length >= 3) || 'Username must be at least 3 characters',
@@ -520,6 +528,15 @@ export default {
     showErrorMessage(message) {
       this.errorMessage = message
       this.showSuccessMessage = false
+
+      // Show universal popup for errors
+      this.errorPopup = {
+        show: true,
+        message: message,
+        type: 'error',
+        operation: 'login',
+        operationType: 'user',
+      }
 
       setTimeout(() => {
         this.clearError()

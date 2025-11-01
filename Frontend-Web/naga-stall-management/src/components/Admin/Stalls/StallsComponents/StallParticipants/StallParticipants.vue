@@ -108,11 +108,13 @@
       </div>
     </div>
 
-    <!-- Custom Error/Success Popup -->
-    <ErrorPopup
+    <!-- Custom Universal Popup -->
+    <UniversalPopup
       :show="popup.show"
       :message="popup.message"
       :type="popup.type"
+      :operation="popup.operation"
+      :operationType="popup.operationType"
       @close="popup.show = false"
     />
   </div>

@@ -2,7 +2,7 @@ import CardStallsComponent from '../Stalls/StallsComponents/CardStallsComponent/
 import SearchFilter from '../Stalls/StallsComponents/SearchAndFilter/SearchAndFilter.vue'
 import AddChoiceModal from './StallsComponents/ChoicesModal/AddChoiceModal/AddChoiceModal.vue'
 import EditStall from '../Stalls/StallsComponents/EditStall/EditStall.vue'
-import ErrorPopup from '../../Common/ErrorPopup/ErrorPopup.vue'
+import UniversalPopup from '../../Common/UniversalPopup/UniversalPopup.vue'
 
 export default {
   name: 'Stalls',
@@ -11,7 +11,7 @@ export default {
     SearchFilter,
     AddChoiceModal,
     EditStall,
-    ErrorPopup,
+    UniversalPopup,
   },
   data() {
     return {
@@ -40,7 +40,9 @@ export default {
       popup: {
         show: false,
         message: '',
-        type: 'error', // error, success, warning, info, primary
+        type: 'error', // error, success, warning, info, loading
+        operation: '', // add, update, delete
+        operationType: 'stall', // stall, employee, stallholder, etc.
       },
     }
   },
@@ -461,7 +463,7 @@ export default {
         this.closeEditModal()
       } catch (error) {
         console.error('Error handling stall update:', error)
-        this.showMessage('Error updating stall display', 'error')
+        this.showMessage('Error updating stall display', 'error', 'update', 'stall')
       }
     },
 
@@ -487,7 +489,7 @@ export default {
         }
       } catch (error) {
         console.error('Error handling stall deletion:', error)
-        this.showMessage('Error removing stall from display', 'error')
+        this.showMessage('Error removing stall from display', 'error', 'delete', 'stall')
       }
     },
 
@@ -543,7 +545,7 @@ export default {
         this.closeAddStallModal()
       } catch (error) {
         console.error('Error handling new stall:', error)
-        this.showMessage('Error adding stall to display', 'error')
+        this.showMessage('Error adding stall to display', 'error', 'add', 'stall')
         // Refresh the entire list if there's an issue
         await this.fetchStalls()
       }
@@ -561,7 +563,7 @@ export default {
       } catch (error) {
         console.error('Error handling new floor:', error)
         // Only show error messages
-        this.showMessage('Error processing new floor', 'error')
+        this.showMessage('Error processing new floor', 'error', 'add', 'floor')
       }
     },
 
@@ -572,7 +574,7 @@ export default {
       } catch (error) {
         console.error('Error handling new section:', error)
         // Only show error messages
-        this.showMessage('Error processing new section', 'error')
+        this.showMessage('Error processing new section', 'error', 'add', 'section')
       }
     },
 
@@ -582,7 +584,7 @@ export default {
     },
 
     // Message handling with enhanced display options
-    showMessage(text, color = 'success') {
+    showMessage(text, color = 'success', operation = '', operationType = 'stall') {
       // Handle case where an object is passed instead of string
       const messageText = typeof text === 'string' ? text : JSON.stringify(text)
 
@@ -592,7 +594,7 @@ export default {
         error: 'error',
         warning: 'warning',
         info: 'info',
-        primary: 'primary',
+        primary: 'info',
         red: 'error',
         green: 'success',
         orange: 'warning',
@@ -603,6 +605,8 @@ export default {
         show: true,
         message: messageText,
         type: typeMapping[color] || 'error',
+        operation: operation,
+        operationType: operationType,
       }
 
       console.log(`Message (${color}): ${messageText}`)
@@ -618,8 +622,8 @@ export default {
     },
 
     // Handle show-message events from child components
-    handleShowMessage({ type, text }) {
-      this.showMessage(text, type)
+    handleShowMessage({ type, text, operation = '', operationType = 'stall' }) {
+      this.showMessage(text, type, operation, operationType)
     },
 
     // Handle warning container request from AddChoiceModal

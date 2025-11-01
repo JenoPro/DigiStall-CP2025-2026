@@ -2,7 +2,7 @@ import axios from 'axios'
 import BranchList from './Components/BranchList/BranchList.vue'
 import AddBranchDialog from './Components/AddBranch/AddBranchDialog.vue'
 import AssignManagerDialog from './Components/AssignManager/AssignManagerDialog.vue'
-import ErrorPopup from '../../Common/ErrorPopup/ErrorPopup.vue'
+import UniversalPopup from '../../Common/UniversalPopup/UniversalPopup.vue'
 
 export default {
   name: 'BranchManagement',
@@ -10,7 +10,7 @@ export default {
     BranchList,
     AddBranchDialog,
     AssignManagerDialog,
-    ErrorPopup,
+    UniversalPopup,
   },
   data() {
     return {
@@ -19,9 +19,13 @@ export default {
       showAddBranchDialog: false,
       showAssignManagerDialog: false,
       selectedBranch: null,
-      showPopup: false,
-      popupMessage: '',
-      popupType: 'error',
+      popup: {
+        show: false,
+        message: '',
+        type: 'error',
+        operation: '',
+        operationType: 'branch',
+      },
     }
   },
   computed: {
@@ -158,23 +162,27 @@ export default {
       }
     },
 
-    showNotification(message, color = 'success') {
+    showNotification(message, color = 'success', operation = '', operationType = 'branch') {
       // Map old color values to new popup types
       const typeMapping = {
         success: 'success',
         error: 'error',
         warning: 'warning',
         info: 'info',
-        primary: 'primary',
+        primary: 'info',
         red: 'error',
         green: 'success',
         orange: 'warning',
         blue: 'info',
       }
 
-      this.popupMessage = message
-      this.popupType = typeMapping[color] || 'error'
-      this.showPopup = true
+      this.popup = {
+        show: true,
+        message: message,
+        type: typeMapping[color] || 'error',
+        operation: operation,
+        operationType: operationType,
+      }
     },
   },
 }

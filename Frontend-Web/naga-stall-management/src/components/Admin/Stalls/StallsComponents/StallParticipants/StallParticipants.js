@@ -1,10 +1,10 @@
 import participantsService from '../../../../../services/participantsService.js'
-import ErrorPopup from '../../../../Common/ErrorPopup/ErrorPopup.vue'
+import UniversalPopup from '../../../../Common/UniversalPopup/UniversalPopup.vue'
 
 export default {
   name: 'StallParticipants',
   components: {
-    ErrorPopup,
+    UniversalPopup,
   },
   props: {
     stallId: {
@@ -23,6 +23,8 @@ export default {
         show: false,
         message: '',
         type: 'error',
+        operation: '',
+        operationType: 'participant',
       },
     }
   },
@@ -68,14 +70,14 @@ export default {
      * @param {string} message - Message to show
      * @param {string} color - Type of the popup
      */
-    showMessage(message, color = 'success') {
+    showMessage(message, color = 'success', operation = '', operationType = 'participant') {
       // Map old color values to new popup types
       const typeMapping = {
         success: 'success',
         error: 'error',
         warning: 'warning',
         info: 'info',
-        primary: 'primary',
+        primary: 'info',
         red: 'error',
         green: 'success',
         orange: 'warning',
@@ -86,6 +88,8 @@ export default {
         show: true,
         message: message,
         type: typeMapping[color] || 'error',
+        operation: operation,
+        operationType: operationType,
       }
     },
   },

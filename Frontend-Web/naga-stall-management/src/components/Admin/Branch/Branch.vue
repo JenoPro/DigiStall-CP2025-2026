@@ -108,11 +108,13 @@
     />
 
     <!-- Custom notification popup -->
-    <ErrorPopup
-      :show="showPopup"
-      :message="popupMessage"
-      :type="popupType"
-      @close="showPopup = false"
+    <UniversalPopup
+      :show="popup.show"
+      :message="popup.message"
+      :type="popup.type"
+      :operation="popup.operation"
+      :operationType="popup.operationType"
+      @close="popup.show = false"
     />
   </div>
 </template>

@@ -168,11 +168,23 @@
     </v-overlay>
 
     <!-- Success Notification Popup -->
-    <ErrorPopup
+    <UniversalPopup
       :show="showSuccessPopup"
       :message="successMessage"
       type="success"
+      operation="login"
+      operationType="user"
       @close="showSuccessPopup = false"
+    />
+
+    <!-- Error Notification Popup -->
+    <UniversalPopup
+      :show="errorPopup.show"
+      :message="errorPopup.message"
+      :type="errorPopup.type"
+      :operation="errorPopup.operation"
+      :operationType="errorPopup.operationType"
+      @close="errorPopup.show = false"
     />
   </v-container>
 </template>
