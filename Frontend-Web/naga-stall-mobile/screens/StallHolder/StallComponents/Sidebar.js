@@ -29,8 +29,12 @@ const Sidebar = ({
     const loadUserData = async () => {
       try {
         const storedUserData = await UserStorageService.getUserData();
+        console.log('🔍 Sidebar - Retrieved user data:', JSON.stringify(storedUserData, null, 2));
         if (storedUserData && storedUserData.user) {
           setUserData(storedUserData.user);
+          console.log('👤 Sidebar - Set user data:', storedUserData.user);
+        } else {
+          console.log('❌ Sidebar - No user data found');
         }
       } catch (error) {
         console.error('Error loading user data for sidebar:', error);
@@ -160,7 +164,7 @@ const Sidebar = ({
                   <View style={styles.profileImageContainer}>
                     <View style={styles.profileImage}>
                       <Text style={styles.profileInitials}>
-                        {userData ? getUserInitials(userData.full_name) : "U"}
+                        {userData ? getUserInitials(userData.full_name || userData.username) : "U"}
                       </Text>
                     </View>
                     <View style={styles.statusIndicator} />
@@ -170,7 +174,7 @@ const Sidebar = ({
                       {userData ? userData.full_name : "Loading..."}
                     </Text>
                     <Text style={styles.profileEmail}>
-                      {userData ? (userData.email || userData.username) : ""}
+                      {userData ? (userData.email || userData.contact_number || userData.username) : ""}
                     </Text>
                     <Text style={styles.profileStatus}>Online</Text>
                   </View>

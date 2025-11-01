@@ -48,8 +48,8 @@ class ApiService {
       console.log('✅ Login successful:', data.message);
       return {
         success: true,
-        data: data,
-        user: data.user,
+        data: data.data,  // Extract the data from the response
+        user: data.data?.user,
         token: data.token,
         message: data.message
       };

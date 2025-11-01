@@ -53,17 +53,18 @@ export const handleLogin = async (username, password, setIsLoading, navigation, 
     if (response.success) {
       console.log('✅ Login successful:', response.message);
 
-      // Save user data and token to local storage
-      const userData = {
-        user: response.user,
-        token: response.token,
-        loginTime: new Date().toISOString()
-      };
+      // Save user data in simple format
+      const userData = response.data;
+      
+      console.log('💾 Saving user data with keys:', Object.keys(userData));
+      console.log('👤 User info:', JSON.stringify(userData.user, null, 2));
+      console.log('📊 Applications:', JSON.stringify(userData.applications, null, 2));
+      console.log('🏪 Stalls:', JSON.stringify(userData.stalls, null, 2));
       
       await UserStorageService.saveUserData(userData);
 
-      // Show success message with user's actual name
-      const userName = response.user?.fullName || response.user?.username || 'User';
+      // Show success message
+      const userName = userData.user?.full_name || userData.user?.username || 'User';
       setErrorModal({
         visible: true,
         title: 'Login Successful',

@@ -69,20 +69,32 @@ const TabbedStallScreen = () => {
       
       // Get user data from storage
       const userData = await UserStorageService.getUserData();
+      
+      console.log('🔍 Retrieved user data from storage:', JSON.stringify(userData, null, 2));
+      
       if (!userData || !userData.user) {
+        console.log('❌ No user data found or missing user object');
         Alert.alert('Error', 'User not logged in. Please login again.');
         return;
       }
       
       setUserData(userData);
-      console.log('🔍 User data for stalls:', JSON.stringify(userData.user, null, 2));
+      console.log('👤 User data loaded:', {
+        fullName: userData.user.full_name,
+        applicantId: userData.user.applicant_id,
+        username: userData.user.username
+      });
       
       // Get user applications
       const applications = userData.applications?.my_applications || [];
       setUserApplications(applications);
       
-      const applicantId = userData.user.id || userData.user.applicant_id;
-      console.log('👤 Using applicant ID:', applicantId);
+      const applicantId = userData.user.applicant_id;
+      
+      if (!applicantId) {
+        Alert.alert('Error', 'User ID not found. Please login again.');
+        return;
+      }
       
       // Fetch stalls by type from backend API
       console.log(`🔄 Loading ${activeTab} stalls...`);
@@ -186,26 +198,35 @@ const TabbedStallScreen = () => {
   };
 
   const handleStallApplication = async (stallId) => {
-    const applicantId = userData?.user?.id || userData?.user?.applicant_id;
-    if (!applicantId) {
+    if (!userData || !userData.user || !userData.user.applicant_id) {
+      Alert.alert('Error', 'Please login again to apply for stalls.');
+      return;
+    }
+    
+    if (!userData.user) {
       Alert.alert('Error', 'User information not available. Please login again.');
+      return;
+    }
+    
+    const applicantId = userData.user.applicant_id;
+    
+    if (!applicantId) {
+      Alert.alert('Error', 'User ID not found. Please login again.');
       return;
     }
 
     try {
       setApplying(stallId);
-      console.log(`📝 Applying for ${activeTab} stall:`, stallId);
 
-      // Prepare application data with required fields
+      // Simple application data
       const applicationData = {
         applicantId: applicantId,
         stallId: stallId,
-        businessName: userData?.user?.business_name || `${userData?.user?.first_name}'s Business`, // Use stored business name or generate one
-        businessType: userData?.user?.business_type || 'General Trade', // Use stored business type or default
-        preferredArea: selectedFilter !== 'ALL' ? selectedFilter : null
+        businessName: userData.user.full_name + "'s Business",
+        businessType: 'General Trade'
       };
 
-      console.log('📝 Submitting application with data:', applicationData);
+      console.log('📝 Submitting application:', applicationData);
 
       const response = await ApiService.submitApplication(applicationData);
 
