@@ -62,6 +62,12 @@
       return permissionLabels[permission] || permission
     },
 
+    getPermissionTooltip(permissions) {
+      if (!permissions || permissions.length <= 2) return '';
+      
+      return `All permissions: ${permissions.map(p => this.getPermissionText(p)).join(', ')}`;
+    },
+
     formatDate(date) {
       if (!date) return 'Never'
       return new Date(date).toLocaleDateString()

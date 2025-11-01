@@ -438,18 +438,6 @@ export default {
       this.saving = true;
 
       try {
-        const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
-
-        // Get the branch manager ID from various possible sources
-        const branchManagerId =
-          currentUser.branchManagerId ||
-          sessionStorage.getItem("branchManagerId") ||
-          currentUser.id;
-
-        if (!branchManagerId) {
-          throw new Error("Unable to identify the branch manager. Please login again.");
-        }
-
         // Get authentication token
         const token = sessionStorage.getItem("authToken");
         if (!token) {
@@ -457,7 +445,7 @@ export default {
         }
 
         const response = await fetch(
-          `${this.apiBaseUrl}/employees/${this.selectedEmployee.employee_id}`,
+          `${this.apiBaseUrl}/employees/${this.selectedEmployee.employee_id}/permissions`,
           {
             method: "PUT",
             headers: {
@@ -466,7 +454,6 @@ export default {
             },
             body: JSON.stringify({
               permissions: this.selectedPermissions,
-              updatedBy: parseInt(branchManagerId),
             }),
           }
         );
