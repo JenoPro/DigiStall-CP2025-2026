@@ -296,13 +296,21 @@ export default {
             username: user.username || user.employee_username,
           }
 
-          // Add branch data for branch managers
+          // Add branch data for branch managers and employees
           if (userType === 'branch-manager' || user.branchManagerId) {
             enhancedUser.branchManagerId = user.branchManagerId || user.id
-            enhancedUser.branchId = user.branchId || user.branch_id || user.branchID
-            enhancedUser.branchName = user.branchName || user.branch_name
+            enhancedUser.branchId = user.branchId || user.branch_id || user.branchID || user.branch?.id
+            // Extract branch name from multiple possible locations
+            enhancedUser.branchName = user.branchName || user.branch_name || user.branch?.branch_name || user.branch?.name
 
             console.log('🔍 Debug - Enhanced user object for branch manager:', enhancedUser)
+          } else if (userType === 'employee') {
+            // Add branch data for employees
+            enhancedUser.branchId = user.branchId || user.branch_id || user.branch?.id
+            // Extract branch name from multiple possible locations
+            enhancedUser.branchName = user.branchName || user.branch_name || user.branch?.branch_name || user.branch?.name
+            
+            console.log('🔍 Debug - Enhanced user object for employee:', enhancedUser)
           }
 
           sessionStorage.setItem('currentUser', JSON.stringify(enhancedUser))
@@ -339,8 +347,9 @@ export default {
             const firstName = user.firstName || user.first_name || user.employee_first_name
             const lastName = user.lastName || user.last_name || user.employee_last_name
             const permissions = user.permissions || {}
-            const branchId = user.branchId || user.branch_id
-            const branchName = user.branchName || user.branch_name
+            const branchId = user.branchId || user.branch_id || user.branch?.id
+            // Extract branch name from multiple possible locations
+            const branchName = user.branchName || user.branch_name || user.branch?.branch_name || user.branch?.name
             const fullName = user.fullName || `${firstName} ${lastName}`.trim()
 
             sessionStorage.setItem(

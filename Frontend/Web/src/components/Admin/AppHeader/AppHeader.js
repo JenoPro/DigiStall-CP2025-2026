@@ -130,6 +130,12 @@ export default {
       
       if (Object.keys(currentUser).length > 0) {
         console.log('✅ Using stored user data from session:', currentUser)
+        console.log('🔍 Branch data in currentUser:', {
+          branchId: currentUser.branchId,
+          branchName: currentUser.branchName,
+          branch_name: currentUser.branch_name,
+          branch: currentUser.branch
+        })
         
         // Use the stored user data directly
         if (this.isAdmin) {
@@ -140,28 +146,56 @@ export default {
             role: 'System Administrator'
           }
         } else if (this.isEmployee) {
+          // Get branch name from various possible sources
+          const branchName = currentUser.branchName || currentUser.branch_name || currentUser.branch?.branch_name || currentUser.branch?.name || null
+          
+          console.log('👤 Employee Data Debug:', {
+            branchName: branchName,
+            currentUser_branchName: currentUser.branchName,
+            currentUser_branch_name: currentUser.branch_name,
+            currentUser_branch: currentUser.branch,
+            fullUser: currentUser
+          })
+          
           this.employeeData = {
             username: currentUser.username || currentUser.employee_username || 'employee',
             fullName: currentUser.fullName || `${currentUser.firstName || currentUser.first_name || ''} ${currentUser.lastName || currentUser.last_name || ''}`.trim() || 'Employee User',
             email: currentUser.email || 'employee@nagastall.com',
             designation: 'Employee',
-            area: currentUser.branchName || currentUser.branch_name || 'Branch Employee',
-            location: currentUser.branchName || currentUser.branch_name || '',
-            branchName: currentUser.branchName || currentUser.branch_name || currentUser.branch?.branch_name || 'Branch Location',
+            area: branchName || 'Branch Employee',
+            location: branchName || '',
+            branchName: branchName || 'Branch Location',
             permissions: currentUser.permissions || []
           }
+          
+          console.log('✅ Final Employee Data:', this.employeeData)
         } else {
           // Branch Manager
+          // Get branch name from various possible sources
+          const branchName = currentUser.branchName || currentUser.branch_name || currentUser.branch?.branch_name || currentUser.branch?.name || null
+          
+          console.log('🏢 Branch Manager Data Debug:', {
+            branchName: branchName,
+            currentUser_branchName: currentUser.branchName,
+            currentUser_branch_name: currentUser.branch_name,
+            currentUser_branch: currentUser.branch,
+            currentUser_branch_name_from_nested: currentUser.branch?.name,
+            currentUser_area: currentUser.area,
+            currentUser_location: currentUser.location
+          })
+          
           this.branchManagerData = {
             username: currentUser.username || currentUser.manager_username || 'manager',
             fullName: currentUser.fullName || `${currentUser.firstName || currentUser.first_name || ''} ${currentUser.lastName || currentUser.last_name || ''}`.trim() || 'Branch Manager',
             email: currentUser.email || 'manager@nagastall.com',
-            area: currentUser.branchName || currentUser.branch_name || currentUser.area || 'Naga City',
-            location: currentUser.location || 'Peoples Mall',
-            designation: `${currentUser.area || 'Naga City'} - ${currentUser.location || 'Peoples Mall'}`,
-            branchId: currentUser.branchId || currentUser.branch_id,
-            branchName: currentUser.branchName || currentUser.branch_name
+            area: branchName || currentUser.area || null,
+            location: currentUser.location || null,
+            designation: branchName || (currentUser.area && currentUser.location ? `${currentUser.area} - ${currentUser.location}` : null),
+            branchId: currentUser.branchId || currentUser.branch_id || currentUser.branch?.id,
+            branchName: branchName
           }
+          
+          console.log('✅ Final Branch Manager Data:', this.branchManagerData)
         }
         
         console.log('✅ User data loaded from session storage')
@@ -275,15 +309,18 @@ export default {
           try {
             const userData = JSON.parse(storedCurrentUser)
             if (userData.userType === 'employee') {
+              // Get branch name from various possible sources
+              const branchName = userData.branchName || userData.branch_name || userData.branch?.branch_name || userData.branch?.name || null
+              
               this.employeeData = {
                 username: userData.employee_username || userData.username,
                 fullName:
                   `${userData.first_name || userData.firstName || ''} ${userData.last_name || userData.lastName || ''}`.trim(),
                 email: userData.email || 'employee@nagastall.com',
                 designation: 'Employee',
-                area: userData.branch_name || userData.branchName || 'Branch Employee',
-                location: userData.branch_name || userData.branchName || '',
-                branchName: userData.branch_name || userData.branchName || userData.branch?.branch_name || 'Branch Location',
+                area: branchName || 'Branch Employee',
+                location: branchName || '',
+                branchName: branchName || 'Branch Location',
                 permissions: userData.permissions || [],
               }
               console.log('✅ Employee data loaded from storage:', this.employeeData)
@@ -311,14 +348,17 @@ export default {
             
             if (response.data && response.data.success && response.data.employee) {
               const empData = response.data.employee
+              // Get branch name from various possible sources
+              const branchName = empData.branchName || empData.branch_name || empData.branch?.branch_name || empData.branch?.name || null
+              
               this.employeeData = {
                 username: empData.employee_username || empData.username,
                 fullName: `${empData.first_name || ''} ${empData.last_name || ''}`.trim(),
                 email: empData.email || 'employee@nagastall.com',
                 designation: 'Employee',
-                area: empData.branch_name || 'Branch Employee',
-                location: empData.branch_name || '',
-                branchName: empData.branch_name || 'Branch Location',
+                area: branchName || 'Branch Employee',
+                location: branchName || '',
+                branchName: branchName || 'Branch Location',
                 permissions: empData.permissions || [],
               }
               console.log('✅ Employee data loaded from API:', this.employeeData)
