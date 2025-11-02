@@ -404,8 +404,12 @@ Stall Management Admin Team`,
   }
 }
 
+// Simpler export alias for credentials email (matching applicants pattern)
+export const sendEmployeeCredentialsEmail = sendEmployeeCredentialsEmailWithRetry;
+
 export default {
   sendEmployeeCredentialsEmailWithRetry,
+  sendEmployeeCredentialsEmail,
   sendEmployeePasswordResetEmail,
   generateEmployeeUsername,
   generateEmployeePassword,

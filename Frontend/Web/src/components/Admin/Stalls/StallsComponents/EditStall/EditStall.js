@@ -84,7 +84,9 @@ export default {
           console.log('📝 Populating form with new data')
           this.populateForm(newData)
         } else {
-          console.log('⚠️ stallData is empty or undefined')
+          console.log('⚠️ stallData is empty or undefined - modal may be closing')
+          // Don't clear form data when stallData becomes empty
+          // This happens when the parent closes the modal
         }
       },
       immediate: true,
@@ -118,8 +120,9 @@ export default {
       this.popupState = 'loading'
       this.successMessage = ''
 
-      // Close the main modal after success popup closes
-      this.handleClose()
+      // Don't automatically close the modal after success
+      // Let the user manually close it or continue editing
+      console.log('✅ Success popup closed, modal remains open for continued editing')
 
       // No auto-refresh needed - parent component handles real-time updates
       console.log('✅ Stall updated successfully - using real-time updates')

@@ -3,9 +3,9 @@ import EmployeeTable from "./Components/EmployeeTable/EmployeeTable.vue";
 import AddEmployee from "./Components/AddEmployee/AddEmployee.vue";
 import ManagePermissions from "./Components/ManagePermissions/ManagePermissions.vue";
 import {
-  sendEmployeeCredentialsEmailWithRetry,
   sendEmployeePasswordResetEmail,
   generateEmployeePassword,
+  sendEmployeeCredentialsEmail,
 } from "./Components/emailService.js";
 
 export default {
@@ -261,91 +261,104 @@ export default {
       this.selectedPermissions = [];
     },
 
+    // Check if email exists (will be validated by backend globally across all branches)
+    async checkEmailExists(email) {
+      // Note: Backend will perform the actual validation globally
+      // This frontend check is just for immediate feedback from cached data
+      try {
+        const token = sessionStorage.getItem("authToken");
+        const response = await fetch(`${this.apiBaseUrl}/employees`, {
+          method: 'GET',
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const employees = data.data || [];
+          // Only check within same branch for immediate feedback
+          // Backend will validate globally
+          return employees.some(emp => emp.email.toLowerCase() === email.toLowerCase());
+        }
+        return false;
+      } catch (error) {
+        console.error("Error checking email:", error);
+        return false;
+      }
+    },
+
     async saveEmployee(employeeData) {
       this.saving = true;
 
       try {
-        // Debug session storage data
-        this.debugSessionStorage();
+        // Check for duplicate email first (only for new employees)
+        if (!this.isEditMode) {
+          const emailExists = await this.checkEmailExists(employeeData.email);
+          if (emailExists) {
+            throw new Error(`An employee with email "${employeeData.email}" already exists. Please use a different email address.`);
+          }
+        }
 
-        const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
+        // Get authentication token first
+        const token = sessionStorage.getItem("authToken");
+        if (!token) {
+          throw new Error("Authentication required. Please login again.");
+        }
 
-        // Debug: Log all available session storage data
-        console.log("🔍 Debug - Session Storage Data:");
-        console.log("  - currentUser:", currentUser);
-        console.log(
-          "  - branchManagerId from storage:",
-          sessionStorage.getItem("branchManagerId")
-        );
-        console.log("  - branchId from storage:", sessionStorage.getItem("branchId"));
-        console.log("  - user from storage:", sessionStorage.getItem("user"));
-        console.log(
-          "  - branchManagerData from storage:",
-          sessionStorage.getItem("branchManagerData")
-        );
+        // Decode token to get user information
+        let decodedToken;
+        try {
+          // Simple base64 decode of JWT payload (between first and second dot)
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          decodedToken = JSON.parse(jsonPayload);
+        } catch (decodeError) {
+          console.error("Token decode error:", decodeError);
+          throw new Error("Invalid authentication token. Please login again.");
+        }
 
-        // Get the branch manager ID and branch ID from various possible sources
-        const branchManagerId =
-          currentUser.branchManagerId ||
-          sessionStorage.getItem("branchManagerId") ||
-          currentUser.id;
+        console.log("🔍 Debug - Decoded token:", decodedToken);
 
-        const branchId =
-          currentUser.branchId ||
-          currentUser.branch_id ||
-          sessionStorage.getItem("branchId") ||
-          employeeData.branchId;
+        // Extract user information from token
+        const branchManagerId = decodedToken.userId || decodedToken.branchManagerId;
+        const branchId = decodedToken.branchId;
 
-        console.log("🔍 Debug - Extracted IDs:");
+        console.log("🔍 Debug - Extracted from token:");
         console.log("  - branchManagerId:", branchManagerId);
         console.log("  - branchId:", branchId);
-        console.log("  - employeeData.branchId:", employeeData.branchId);
 
-        // More flexible validation - allow branchId to be determined later if needed
+        // Validation
         if (!branchManagerId) {
-          throw new Error("Unable to identify the branch manager. Please login again.");
+          throw new Error("Unable to identify the branch manager from token. Please login again.");
         }
 
-        // For branch ID, try to get it from branch manager data if not found elsewhere
-        let finalBranchId = branchId;
-        if (!finalBranchId) {
-          const branchManagerData = JSON.parse(
-            sessionStorage.getItem("branchManagerData") || "{}"
-          );
-          finalBranchId = branchManagerData.branchId;
-          console.log("🔍 Debug - Trying branchManagerData.branchId:", finalBranchId);
-        }
-
-        // If still no branch ID, set a default but warn
-        if (!finalBranchId) {
-          console.warn("⚠️ Warning: No branch ID found, using default value 1");
-          finalBranchId = 1;
+        if (!branchId) {
+          throw new Error("Branch ID not found in token. Please login again.");
         }
 
         console.log("🏪 Creating employee with branch manager ID:", branchManagerId);
-        console.log("🏢 Creating employee for branch ID:", finalBranchId);
+        console.log("🏢 Creating employee for branch ID:", branchId);
 
         const payload = {
           firstName: employeeData.firstName,
           lastName: employeeData.lastName,
           email: employeeData.email,
           phoneNumber: employeeData.phoneNumber,
-          branchId: parseInt(finalBranchId),
-          permissions: this.selectedPermissions,
-          createdByManager: parseInt(branchManagerId),
+          permissions: this.selectedPermissions || [],
         };
+
+        console.log("📤 Sending payload:", payload);
+        console.log("📤 Permissions being sent:", this.selectedPermissions);
 
         const url = this.isEditMode
           ? `${this.apiBaseUrl}/employees/${this.selectedEmployee.employee_id}`
           : `${this.apiBaseUrl}/employees`;
 
         const method = this.isEditMode ? "PUT" : "POST";
-
-        // Get authentication token
-        const token = sessionStorage.getItem("authToken");
-        if (!token) {
-          throw new Error("Authentication required. Please login again.");
-        }
 
         const response = await fetch(url, {
           method,
@@ -356,43 +369,76 @@ export default {
           body: JSON.stringify(payload),
         });
 
+        console.log("📡 Response status:", response.status);
+        
+        if (!response.ok) {
+          // Try to get error details from response
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+          
+          // Provide more specific error messages
+          if (response.status === 400 && errorMessage.includes('email')) {
+            throw new Error(`Email validation failed: ${errorMessage}. Please try a different email address.`);
+          } else if (response.status === 400) {
+            throw new Error(`Invalid data: ${errorMessage}. Please check all required fields.`);
+          } else if (response.status === 401) {
+            throw new Error("Authentication expired. Please login again.");
+          } else if (response.status === 403) {
+            throw new Error("You don't have permission to create employees.");
+          } else {
+            throw new Error(errorMessage);
+          }
+        }
+
         const data = await response.json();
+        console.log("📡 Response data:", data);
 
         if (data.success) {
           if (!this.isEditMode) {
-            // Use backend-generated credentials
+            // Backend generated credentials
             const backendCredentials = data.data.credentials;
-            console.log(
-              "📧 Sending employee credentials email with backend credentials..."
-            );
-            const emailResult = await sendEmployeeCredentialsEmailWithRetry(
-              employeeData.email,
-              `${employeeData.firstName} ${employeeData.lastName}`,
-              backendCredentials.username,
-              backendCredentials.password
-            );
-
-            if (emailResult.success) {
-              this.$emit(
-                "show-snackbar",
-                `Employee created successfully! Username: ${backendCredentials.username}, Password: ${backendCredentials.password}. Welcome email sent to ${employeeData.email}`,
-                "success",
-                10000
+            console.log("✅ Employee created with backend credentials:", backendCredentials);
+            
+            // Send email using EmailJS (same method as applicants)
+            try {
+              const employeeName = `${employeeData.firstName} ${employeeData.lastName}`;
+              const emailResult = await sendEmployeeCredentialsEmail(
+                employeeData.email,
+                employeeName,
+                backendCredentials.username,
+                backendCredentials.password
               );
-            } else {
+              
+              if (emailResult.success) {
+                console.log("📧 Welcome email sent successfully via EmailJS");
+                this.$emit(
+                  "show-snackbar",
+                  `Employee created successfully! Welcome email with credentials sent to ${employeeData.email}`,
+                  "success",
+                  10000
+                );
+              } else {
+                console.warn("⚠️ Email sending failed:", emailResult.message);
+                this.$emit(
+                  "show-snackbar",
+                  `Employee created! Username: ${backendCredentials.username}, Password: ${backendCredentials.password}. (Email failed: ${emailResult.message})`,
+                  "warning",
+                  15000
+                );
+              }
+            } catch (emailError) {
+              console.error("❌ Error sending email:", emailError);
               this.$emit(
                 "show-snackbar",
-                `Employee created! Username: ${backendCredentials.username}, Password: ${backendCredentials.password}. Warning: Email failed to send - ${emailResult.message}`,
+                `Employee created! Username: ${backendCredentials.username}, Password: ${backendCredentials.password}. Please send credentials manually to ${employeeData.email}`,
                 "warning",
-                12000
+                15000
               );
             }
           } else {
             this.$emit(
               "show-snackbar",
-              this.isEditMode
-                ? "Employee updated successfully!"
-                : "Employee created successfully!",
+              "Employee updated successfully!",
               "success"
             );
           }
@@ -404,7 +450,20 @@ export default {
         }
       } catch (error) {
         console.error("Error saving employee:", error);
-        this.$emit("show-snackbar", `Failed to save employee: ${error.message}`, "error");
+        
+        // Provide user-friendly error messages
+        let errorMessage = error.message;
+        if (error.message.includes('email address already exists') || error.message.includes('Email validation failed')) {
+          errorMessage = `⚠️ The email "${employeeData.email}" is already registered in the system (possibly in another branch). Please use a different email address.`;
+        } else if (error.message.includes('Authentication')) {
+          errorMessage = "Your session has expired. Please refresh the page and login again.";
+        } else if (error.message.includes('Branch ID not found')) {
+          errorMessage = "Session error: Branch information missing. Please refresh and login again.";
+        } else if (error.message.includes('Missing required fields')) {
+          errorMessage = "Please fill in all required fields (First Name, Last Name, Email).";
+        }
+        
+        this.$emit("show-snackbar", errorMessage, "error", 10000);
       } finally {
         this.saving = false;
       }

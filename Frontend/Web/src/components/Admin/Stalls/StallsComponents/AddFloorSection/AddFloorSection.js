@@ -1,3 +1,5 @@
+import { eventBus, EVENTS } from '../../../../../eventBus.js'
+
 export default {
   name: 'AddFloorSection',
   props: {
@@ -143,6 +145,17 @@ export default {
         await this.loadFloors()
         this.$emit('floor-added', result)
         this.$emit('refresh-data')
+        
+        // Emit global event for real-time updates
+        eventBus.emit(EVENTS.FLOOR_ADDED, {
+          floorData: result,
+          message: `Floor "${this.newFloor.floorName}" added successfully!`
+        })
+        eventBus.emit(EVENTS.FLOORS_SECTIONS_UPDATED, {
+          type: 'floor',
+          action: 'added',
+          data: result
+        })
       } catch (error) {
         console.error('Error adding floor:', error)
         console.warn('Floor addition failed:', error.message || 'Unknown error')
@@ -196,6 +209,17 @@ export default {
         this.resetSectionForm()
         this.$emit('section-added', result)
         this.$emit('refresh-data')
+        
+        // Emit global event for real-time updates
+        eventBus.emit(EVENTS.SECTION_ADDED, {
+          sectionData: result,
+          message: `Section "${this.newSection.sectionName}" added successfully!`
+        })
+        eventBus.emit(EVENTS.FLOORS_SECTIONS_UPDATED, {
+          type: 'section',
+          action: 'added',
+          data: result
+        })
       } catch (error) {
         console.error('Error adding section:', error)
         console.warn('Section addition failed:', error.message || 'Unknown error')

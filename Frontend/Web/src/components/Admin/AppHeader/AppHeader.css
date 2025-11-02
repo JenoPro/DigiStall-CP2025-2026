@@ -62,6 +62,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  width: 100%;
 }
 
 /* Profile Info Section - Updated to match image design */
@@ -208,6 +209,8 @@
   background: white;
   border-top: none;
   text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .popup-item:first-of-type {
@@ -224,6 +227,12 @@
   font-size: 20px;
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
+}
+
+.popup-item span {
+  flex: 1;
+  text-align: left;
 }
 
 .popup-item:hover .item-icon {

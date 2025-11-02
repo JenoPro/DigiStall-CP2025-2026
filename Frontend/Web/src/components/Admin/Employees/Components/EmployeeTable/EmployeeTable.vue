@@ -61,7 +61,12 @@
             </div>
 
             <div class="table-cell permissions-col">
-              <div class="permissions-list">
+              <div 
+                class="permissions-list"
+                @mouseenter="showPermissionsPopup(employee, $event)"
+                @mouseleave="hidePermissionsPopup"
+                @click.stop="togglePermissionsPopup(employee, $event)"
+              >
                 <v-chip
                   v-for="permission in (employee.permissions || []).slice(0, 2)"
                   :key="permission"
@@ -77,7 +82,7 @@
                   size="x-small"
                   color="grey"
                   variant="outlined"
-                  class="permission-chip"
+                  class="permission-chip more-chip"
                 >
                   +{{ (employee.permissions || []).length - 2 }} more
                 </v-chip>
@@ -91,6 +96,34 @@
               </div>
               <span v-else class="text-grey">Never</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permissions Popup -->
+      <div 
+        v-if="permissionsPopupVisible && hoveredEmployee"
+        class="permissions-popup"
+        :style="permissionsPopupStyle"
+        @mouseenter="keepPermissionsPopupOpen"
+        @mouseleave="hidePermissionsPopup"
+      >
+        <div class="permissions-popup-header">
+          <v-icon size="16" class="me-1">mdi-shield-account</v-icon>
+          <span class="permissions-popup-title">All Permissions</span>
+        </div>
+        <div class="permissions-popup-content">
+          <div
+            v-for="permission in (hoveredEmployee.permissions || [])"
+            :key="permission"
+            class="permission-item"
+          >
+            <v-icon size="14" color="success" class="permission-icon">mdi-check-circle</v-icon>
+            <span class="permission-text">{{ getPermissionText(permission) }}</span>
+          </div>
+          <div v-if="!hoveredEmployee.permissions || hoveredEmployee.permissions.length === 0" class="no-permissions">
+            <v-icon size="14" color="grey" class="me-1">mdi-information</v-icon>
+            <span class="text-grey">No permissions assigned</span>
           </div>
         </div>
       </div>

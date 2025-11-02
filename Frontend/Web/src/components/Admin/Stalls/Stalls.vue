@@ -28,6 +28,7 @@
           <v-col cols="12">
             <!-- Search Filter Component -->
             <SearchFilter
+              ref="searchFilter"
               :stallsData="stallsData"
               @filtered-stalls="handleFilteredStalls"
             />
@@ -90,6 +91,7 @@
         @section-added="handleSectionAdded"
         @show-message="showMessage"
         @show-warning-container="handleShowWarningContainer"
+        @refresh-data="handleRefreshData"
       />
 
       <!-- Edit Stall Modal Component -->

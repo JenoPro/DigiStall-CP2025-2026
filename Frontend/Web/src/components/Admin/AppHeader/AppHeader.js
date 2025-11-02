@@ -76,25 +76,99 @@ export default {
       if (this.isAdmin) {
         return 'System Administration'
       }
+      
+      // For employees, prioritize branch name
+      if (this.isEmployee) {
+        return this.currentUserData?.branchName || this.currentUserData?.branch_name || 'Branch Location'
+      }
+      
+      // For branch managers, show area - location format
       if (this.currentUserData?.area && this.currentUserData?.location) {
         return `${this.currentUserData.area} - ${this.currentUserData.location}`
       }
-      return 'Naga City - Peoples Mall' // Default location
+      
+      // Fallback to branch name if available
+      if (this.currentUserData?.branchName) {
+        return this.currentUserData.branchName
+      }
+      
+      return 'Branch Location' // Final fallback
     },
     defaultEmail() {
+      // Use actual user email if available, otherwise fall back to role-based defaults
+      const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+      if (currentUser.email) {
+        return currentUser.email
+      }
+      
       // Default email based on user type
       if (this.isAdmin) {
         return 'admin@nagastall.com'
       } else if (this.isEmployee) {
         return 'employee@nagastall.com'
       } else {
-        return 'manager.naga@nagastall.com'
+        return 'manager@nagastall.com'
       }
     },
+  },
+  watch: {
+    userType: {
+      handler(newUserType, oldUserType) {
+        if (newUserType !== oldUserType) {
+          console.log('🔄 User type changed, refreshing user data:', { oldUserType, newUserType })
+          this.fetchUserData()
+        }
+      },
+      immediate: false
+    }
   },
   methods: {
     // Method to fetch user data based on user type
     async fetchUserData() {
+      // First try to get data from session storage (stored during login)
+      const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}')
+      
+      if (Object.keys(currentUser).length > 0) {
+        console.log('✅ Using stored user data from session:', currentUser)
+        
+        // Use the stored user data directly
+        if (this.isAdmin) {
+          this.adminData = {
+            username: currentUser.username || 'admin',
+            fullName: currentUser.fullName || `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'Administrator',
+            email: currentUser.email || 'admin@nagastall.com',
+            role: 'System Administrator'
+          }
+        } else if (this.isEmployee) {
+          this.employeeData = {
+            username: currentUser.username || currentUser.employee_username || 'employee',
+            fullName: currentUser.fullName || `${currentUser.firstName || currentUser.first_name || ''} ${currentUser.lastName || currentUser.last_name || ''}`.trim() || 'Employee User',
+            email: currentUser.email || 'employee@nagastall.com',
+            designation: 'Employee',
+            area: currentUser.branchName || currentUser.branch_name || 'Branch Employee',
+            location: currentUser.branchName || currentUser.branch_name || '',
+            branchName: currentUser.branchName || currentUser.branch_name || currentUser.branch?.branch_name || 'Branch Location',
+            permissions: currentUser.permissions || []
+          }
+        } else {
+          // Branch Manager
+          this.branchManagerData = {
+            username: currentUser.username || currentUser.manager_username || 'manager',
+            fullName: currentUser.fullName || `${currentUser.firstName || currentUser.first_name || ''} ${currentUser.lastName || currentUser.last_name || ''}`.trim() || 'Branch Manager',
+            email: currentUser.email || 'manager@nagastall.com',
+            area: currentUser.branchName || currentUser.branch_name || currentUser.area || 'Naga City',
+            location: currentUser.location || 'Peoples Mall',
+            designation: `${currentUser.area || 'Naga City'} - ${currentUser.location || 'Peoples Mall'}`,
+            branchId: currentUser.branchId || currentUser.branch_id,
+            branchName: currentUser.branchName || currentUser.branch_name
+          }
+        }
+        
+        console.log('✅ User data loaded from session storage')
+        return
+      }
+      
+      // Fallback to API calls if no session data available
       if (this.isAdmin) {
         await this.fetchAdminData()
       } else if (this.isEmployee) {
@@ -205,9 +279,11 @@ export default {
                 username: userData.employee_username || userData.username,
                 fullName:
                   `${userData.first_name || userData.firstName || ''} ${userData.last_name || userData.lastName || ''}`.trim(),
+                email: userData.email || 'employee@nagastall.com',
                 designation: 'Employee',
-                area: userData.branch_name || 'Branch Employee',
-                location: userData.branch_name || '',
+                area: userData.branch_name || userData.branchName || 'Branch Employee',
+                location: userData.branch_name || userData.branchName || '',
+                branchName: userData.branch_name || userData.branchName || userData.branch?.branch_name || 'Branch Location',
                 permissions: userData.permissions || [],
               }
               console.log('✅ Employee data loaded from storage:', this.employeeData)
@@ -219,13 +295,50 @@ export default {
           }
         }
 
-        // If no stored data, create default employee data
+        // If no stored data, try fetching from API
+        const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken')
+        
+        if (token) {
+          try {
+            console.log('📡 Fetching employee data from server...')
+            const response = await axios.get(`${API_BASE_URL_WITH_API}/auth/me`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000,
+            })
+            
+            if (response.data && response.data.success && response.data.employee) {
+              const empData = response.data.employee
+              this.employeeData = {
+                username: empData.employee_username || empData.username,
+                fullName: `${empData.first_name || ''} ${empData.last_name || ''}`.trim(),
+                email: empData.email || 'employee@nagastall.com',
+                designation: 'Employee',
+                area: empData.branch_name || 'Branch Employee',
+                location: empData.branch_name || '',
+                branchName: empData.branch_name || 'Branch Location',
+                permissions: empData.permissions || [],
+              }
+              console.log('✅ Employee data loaded from API:', this.employeeData)
+              this.loading = false
+              return
+            }
+          } catch (apiError) {
+            console.warn('Failed to fetch employee data from API:', apiError)
+          }
+        }
+
+        // If no stored data or API fetch failed, create default employee data
         this.employeeData = {
           username: 'employee',
           fullName: 'Employee User',
+          email: 'employee@nagastall.com',
           designation: 'Employee',
           area: 'System Employee',
           location: '',
+          branchName: 'Branch Location',
           permissions: [],
         }
         console.log('📦 Using default employee data')
@@ -400,7 +513,17 @@ export default {
 
     // Refresh user data based on user type
     async refreshUserData() {
+      console.log('🔄 Refreshing user data...')
       await this.fetchUserData()
+    },
+
+    // Force refresh from session storage
+    refreshFromSessionStorage() {
+      console.log('🔄 Force refreshing from session storage...')
+      this.branchManagerData = null
+      this.adminData = null
+      this.employeeData = null
+      this.fetchUserData()
     },
 
     // Refresh branch manager data (kept for backward compatibility)
@@ -423,8 +546,25 @@ export default {
     // Setup authentication
     this.setupAuthInterceptor()
 
+    // Debug session storage contents
+    console.log('🔍 AppHeader mounted - Debug session storage:')
+    console.log('  - authToken:', sessionStorage.getItem('authToken') ? 'Present' : 'Missing')
+    console.log('  - userType:', sessionStorage.getItem('userType'))
+    console.log('  - currentUser:', sessionStorage.getItem('currentUser'))
+    console.log('  - branchManagerData:', sessionStorage.getItem('branchManagerData'))
+    console.log('  - adminData:', sessionStorage.getItem('adminData'))
+    console.log('  - employeeData:', sessionStorage.getItem('employeeData'))
+
     // Fetch user data based on user type when component mounts
     await this.fetchUserData()
+    
+    // Log final state
+    console.log('🔍 AppHeader final user data state:')
+    console.log('  - userType:', this.userType)
+    console.log('  - currentUserData:', this.currentUserData)
+    console.log('  - displayUsername:', this.displayUsername)
+    console.log('  - displayLocationText:', this.displayLocationText)
+    console.log('  - defaultEmail:', this.defaultEmail)
   },
 
   beforeUnmount() {

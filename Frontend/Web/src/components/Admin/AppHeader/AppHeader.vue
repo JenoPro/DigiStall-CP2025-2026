@@ -76,7 +76,7 @@
 
                 <!-- Full name with role badge -->
                 <div class="profile-name-with-badge">
-                  <span class="profile-fullname">{{ currentUserData?.fullName || (isAdmin ? 'Administrator' : isEmployee ? 'Employee User' : 'Juan Dela Cruz') }}</span>
+                  <span class="profile-fullname">{{ currentUserData?.fullName || (isAdmin ? 'Administrator' : isEmployee ? 'Employee User' : 'Branch Manager') }}</span>
                   <span class="profile-role-badge">
                     {{ isAdmin ? 'ADMIN' : isEmployee ? 'EMPLOYEE' : 'BRANCH MANAGER' }}
                   </span>

@@ -299,3 +299,101 @@
 .action-buttons-popup .v-btn .v-icon {
   margin-right: 12px;
 }
+
+/* Permissions Popup Styles */
+.permissions-popup {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 0;
+  animation: fadeInPopup 0.2s ease-out;
+  border: 1px solid #e0e0e0;
+}
+
+@keyframes fadeInPopup {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.permissions-popup-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgb(0, 33, 129);
+  color: white;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.permissions-popup-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.permissions-popup-content {
+  padding: 8px 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.permission-item:last-child {
+  border-bottom: none;
+}
+
+.permission-item:hover {
+  background-color: #f8f9fa;
+}
+
+.permission-icon {
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.permission-text {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+.no-permissions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: #666;
+  font-size: 12px;
+}
+
+.permissions-list {
+  cursor: pointer;
+  position: relative;
+}
+
+.permission-chip.more-chip {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.permission-chip.more-chip:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  transform: scale(1.05);
+}

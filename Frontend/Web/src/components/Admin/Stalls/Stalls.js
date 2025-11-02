@@ -3,6 +3,7 @@ import SearchFilter from '../Stalls/StallsComponents/SearchAndFilter/SearchAndFi
 import AddChoiceModal from './StallsComponents/ChoicesModal/AddChoiceModal/AddChoiceModal.vue'
 import EditStall from '../Stalls/StallsComponents/EditStall/EditStall.vue'
 import UniversalPopup from '../../Common/UniversalPopup/UniversalPopup.vue'
+import { eventBus, EVENTS } from '../../../eventBus.js'
 
 export default {
   name: 'Stalls',
@@ -44,14 +45,123 @@ export default {
         operation: '', // add, update, delete
         operationType: 'stall', // stall, employee, stallholder, etc.
       },
+      
+      // Flag to track when we're in the middle of updating a stall
+      isUpdatingStall: false,
     }
   },
 
   async mounted() {
     await this.initializeComponent()
+    this.setupEventListeners()
+  },
+
+  beforeDestroy() {
+    this.cleanupEventListeners()
   },
 
   methods: {
+    // Setup event bus listeners
+    setupEventListeners() {
+      // Listen for floor and section updates
+      eventBus.on(EVENTS.FLOOR_ADDED, this.handleFloorSectionUpdate)
+      eventBus.on(EVENTS.SECTION_ADDED, this.handleFloorSectionUpdate)
+      eventBus.on(EVENTS.FLOORS_SECTIONS_UPDATED, this.handleFloorSectionUpdate)
+      
+      // Listen for stall events for real-time updates
+      eventBus.on(EVENTS.STALL_ADDED, this.handleEventBusStallAdded)
+      eventBus.on(EVENTS.STALL_UPDATED, this.handleEventBusStallUpdated)
+      eventBus.on(EVENTS.STALL_DELETED, this.handleEventBusStallDeleted)
+    },
+
+    // Cleanup event bus listeners
+    cleanupEventListeners() {
+      eventBus.off(EVENTS.FLOOR_ADDED, this.handleFloorSectionUpdate)
+      eventBus.off(EVENTS.SECTION_ADDED, this.handleFloorSectionUpdate)
+      eventBus.off(EVENTS.FLOORS_SECTIONS_UPDATED, this.handleFloorSectionUpdate)
+      
+      // Clean up stall event listeners
+      eventBus.off(EVENTS.STALL_ADDED, this.handleEventBusStallAdded)
+      eventBus.off(EVENTS.STALL_UPDATED, this.handleEventBusStallUpdated)
+      eventBus.off(EVENTS.STALL_DELETED, this.handleEventBusStallDeleted)
+    },
+
+    // Handle floor/section updates from event bus
+    async handleFloorSectionUpdate(data) {
+      console.log('🔄 Event bus update received:', data)
+      
+      // Re-check floors and sections availability
+      if (this.currentUser?.userType === 'branch_manager') {
+        console.log('🔄 Re-checking floors and sections after event bus update...')
+        this.hasFloorsSections = await this.checkFloorsAndSections()
+        
+        if (this.hasFloorsSections) {
+          console.log('✅ Floors and sections are now available via event bus!')
+        }
+      }
+    },
+
+    // Handle stall added from event bus (real-time updates)
+    async handleEventBusStallAdded(data) {
+      try {
+        console.log('🆕 EventBus: Stall added received:', data)
+        
+        if (data.stallData) {
+          // Transform the new stall data and add to local array
+          const transformedStall = this.transformStallData(data.stallData)
+          console.log('🆕 EventBus: Transformed new stall:', transformedStall)
+          
+          // Add to beginning of array and clear any filters to show all stalls
+          this.stallsData.unshift(transformedStall)
+          
+          // Clear filters to show the new stall
+          if (this.$refs.searchFilter) {
+            this.$refs.searchFilter.clearAllFilters()
+          }
+          
+          // Update display
+          this.displayStalls = [...this.stallsData]
+          
+          // Close modal if it's open
+          this.closeAddStallModal()
+          
+          console.log('✅ EventBus: Stall added successfully via real-time update')
+        }
+      } catch (error) {
+        console.error('❌ EventBus: Error handling stall added:', error)
+      }
+    },
+
+    // Handle stall updated from event bus (real-time updates)
+    async handleEventBusStallUpdated(data) {
+      try {
+        console.log('📝 EventBus: Stall updated received:', data)
+        
+        if (data.stallData) {
+          // Use the existing handleStallUpdated method which already has the logic
+          await this.handleStallUpdated(data.stallData)
+          console.log('✅ EventBus: Stall updated successfully via real-time update')
+        }
+      } catch (error) {
+        console.error('❌ EventBus: Error handling stall updated:', error)
+      }
+    },
+
+    // Handle stall deleted from event bus (real-time updates)
+    async handleEventBusStallDeleted(data) {
+      try {
+        console.log('🗑️ EventBus: Stall deleted received:', data)
+        
+        if (data.stallId) {
+          // Use the existing handleStallDeleted method which already has the logic
+          await this.handleStallDeleted(data.stallId)
+          console.log('✅ EventBus: Stall deleted successfully via real-time update')
+        }
+      } catch (error) {
+        console.error('❌ EventBus: Error handling stall deleted:', error)
+      }
+    },
+
     // Initialize component with user auth check
     async initializeComponent() {
       try {
@@ -273,16 +383,29 @@ export default {
     transformStallData(stall) {
       console.log('🔄 Transforming stall data:', stall)
 
+      // FIXED: More robust ID extraction - prefer stall_id from backend, then id
       const extractedId = stall.stall_id || stall.id || stall.ID
+      console.log('🔍 ID extraction debug:', {
+        'stall.stall_id': stall.stall_id,
+        'stall.id': stall.id,
+        'stall.ID': stall.ID,
+        'extractedId': extractedId,
+        'extractedId type': typeof extractedId
+      })
 
-      return {
-        // Basic stall info
-        id: extractedId,
+      if (!extractedId) {
+        console.error('❌ No valid ID found in stall data:', stall)
+        throw new Error('Stall data is missing required ID field')
+      }
+
+      const transformed = {
+        // Basic stall info - ensure ID is consistent
+        id: Number(extractedId),
         stallNumber: stall.stall_no || stall.stallNumber,
         price: this.formatPrice(stall.rental_price || stall.price),
         location: stall.stall_location,
         size: stall.size,
-        dimensions: stall.dimensions,
+        dimensions: stall.size || stall.dimensions, // Use size as primary, dimensions as fallback
         description: stall.description,
         status: stall.status,
         stamp: stall.stamp,
@@ -296,7 +419,6 @@ export default {
         floor_number: stall.floor_number,
         section_id: stall.section_id,
         section_name: stall.section_name,
-        section_code: stall.section_code,
 
         // CamelCase (for other components)
         floorId: stall.floor_id,
@@ -304,7 +426,7 @@ export default {
         floorNumber: stall.floor_number,
         sectionId: stall.section_id,
         sectionName: stall.section_name,
-        sectionCode: stall.section_code,
+        sectionCode: stall.section_name, // Use section_name as fallback since section_code doesn't exist
 
         // Legacy fields for backward compatibility
         floor: stall.floor_name || `Floor ${stall.floor_number}`,
@@ -328,6 +450,9 @@ export default {
         rental_price: stall.rental_price,
         originalData: stall,
       }
+
+      console.log('🔄 Transformed stall ID:', transformed.id, 'type:', typeof transformed.id)
+      return transformed
     },
 
     // Format price display
@@ -431,39 +556,41 @@ export default {
 
     async handleStallUpdated(updatedStallData) {
       try {
-        console.log('🔄 Parent received stall update (raw backend data):', updatedStallData)
-
-        // Transform the raw backend data using the same method used for initial load
-        const updatedStall = this.transformStallData(updatedStallData)
-        console.log('🔄 Transformed stall data:', updatedStall)
-
-        console.log('🔄 Looking for stall with ID:', updatedStall.id)
-        console.log(
-          '🔄 Current stallsData IDs:',
-          this.stallsData.map((s) => ({ id: s.id, stallNumber: s.stallNumber })),
+        console.log('📝 Handling stall update:', updatedStallData)
+        
+        // Set flag to prevent filter interference
+        this.isUpdatingStall = true
+        
+        // Find and update the stall in stallsData
+        const stallIndex = this.stallsData.findIndex(stall => 
+          Number(stall.stall_id) === Number(updatedStallData.stall_id) ||
+          Number(stall.id) === Number(updatedStallData.stall_id)
         )
-
-        // Update local data
-        const index = this.stallsData.findIndex((s) => s.id === updatedStall.id)
-        console.log('🔄 Found stall at index:', index)
-
-        if (index > -1) {
-          console.log('🔄 Old stall data:', this.stallsData[index])
-          this.stallsData[index] = { ...updatedStall }
-          console.log('🔄 New stall data:', this.stallsData[index])
-
+        
+        if (stallIndex !== -1) {
+          // Transform the updated data to match our format
+          const transformedStall = this.transformStallData(updatedStallData)
+          
+          // Update stallsData
+          this.stallsData.splice(stallIndex, 1, transformedStall)
+          
+          // Clear all filters to show all stalls including the updated one
+          if (this.$refs.searchFilter) {
+            this.$refs.searchFilter.clearAllFilters()
+          }
+          
+          // Show all stalls after clearing filters
           this.displayStalls = [...this.stallsData]
-          console.log('✅ Local stall data updated successfully!')
-
-          // No additional success message - EditStall component handles the popup
+          
+          console.log('✅ Stall updated successfully - using real-time updates')
         } else {
-          console.error('❌ Could not find stall to update in local data')
+          console.warn('⚠️ Stall not found for update')
         }
-
-        this.closeEditModal()
       } catch (error) {
-        console.error('Error handling stall update:', error)
-        this.showMessage('Error updating stall display', 'error', 'update', 'stall')
+        console.error('❌ Error updating stall:', error)
+      } finally {
+        // Always clear the flag after update
+        this.isUpdatingStall = false
       }
     },
 
@@ -495,6 +622,12 @@ export default {
 
     // Search and filter functions
     handleFilteredStalls(filtered) {
+      // Ignore filter updates while we're updating a stall to prevent the updated stall from disappearing
+      if (this.isUpdatingStall) {
+        console.log('🔄 Ignoring filter update during stall update')
+        return
+      }
+      
       this.displayStalls = filtered
     },
 
@@ -502,24 +635,35 @@ export default {
     async handleFabClick() {
       console.log('🎯 FAB clicked - checking floors and sections availability')
       console.log('🎯 Current user type:', this.currentUser?.userType)
-      console.log('🎯 Has floors and sections:', this.hasFloorsSections)
-
-      // Check if floors and sections are available
-      if (!this.hasFloorsSections) {
-        console.log('🎯 No floors/sections - showing warning message')
-        this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
-      } else {
-        console.log('🎯 Floors/sections exist - showing choice modal')
-        this.showModal = true
+      
+      // For branch managers, always re-check floors and sections in real-time
+      if (this.currentUser?.userType === 'branch_manager') {
+        console.log('🔄 Re-checking floors and sections availability in real-time...')
+        this.hasFloorsSections = await this.checkFloorsAndSections()
+        console.log('🎯 Real-time check - Has floors and sections:', this.hasFloorsSections)
+        
+        if (!this.hasFloorsSections) {
+          console.log('🎯 No floors/sections - showing warning message')
+          this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
+          return
+        }
       }
+      
+      console.log('🎯 Floors/sections exist - showing choice modal')
+      this.showModal = true
     },
 
     // Add stall functions
     async openAddStallModal() {
       // For branch managers, check if floors and sections are available before allowing stall creation
-      if (this.currentUser?.userType === 'branch_manager' && !this.hasFloorsSections) {
-        this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
-        return
+      if (this.currentUser?.userType === 'branch_manager') {
+        console.log('🔄 Checking floors and sections availability before opening stall modal...')
+        this.hasFloorsSections = await this.checkFloorsAndSections()
+        
+        if (!this.hasFloorsSections) {
+          this.showMessage('Please set up floors and sections first before adding stalls.', 'primary')
+          return
+        }
       }
       this.showModal = true
     },
@@ -528,41 +672,42 @@ export default {
       this.showModal = false
     },
 
-    // UPDATED: Handle stall added with proper event name
-    async handleStallAdded(newStallData) {
-      try {
-        console.log('🆕 Handling new stall data (from AddAvailableStall):', newStallData)
-        console.log('🆕 Raw stall data type:', typeof newStallData)
-        console.log('🆕 Raw stall data keys:', Object.keys(newStallData || {}))
-
-        // Transform the new stall data and add to local array
-        const transformedStall = this.transformStallData(newStallData)
-        console.log('🆕 Transformed new stall:', transformedStall)
-        console.log('🆕 Final stall ID:', transformedStall.id)
-
-        this.stallsData.unshift(transformedStall) // Add to beginning
-        this.displayStalls = [...this.stallsData]
-        this.closeAddStallModal()
-      } catch (error) {
-        console.error('Error handling new stall:', error)
-        this.showMessage('Error adding stall to display', 'error', 'add', 'stall')
-        // Refresh the entire list if there's an issue
-        await this.fetchStalls()
-      }
+    // UPDATED: Handle stall added - DISABLED to prevent duplicates (using eventBus now)
+    async handleStallAdded() {
+      // This method is now disabled to prevent duplicate additions
+      // Real-time updates are handled via eventBus in handleEventBusStallAdded
+      console.log('⚠️ handleStallAdded called but ignoring - using eventBus instead')
+      console.log('🔄 EventBus should handle this via handleEventBusStallAdded')
+      return
     },
 
-    // Alternative handler method name (in case the emit uses different name)
-    async onStallAdded(newStallData) {
-      await this.handleStallAdded(newStallData)
+    // Alternative handler method name - DISABLED (using eventBus now)
+    async onStallAdded() {
+      // Also disabled to prevent duplicates
+      console.log('⚠️ onStallAdded called but ignoring - using eventBus instead')
+      return
     },
 
     // Handle floor added
     async handleFloorAdded(newFloorData) {
       try {
         console.log('Handling new floor data:', newFloorData)
+        
+        // Re-check floors and sections availability after adding a floor
+        if (this.currentUser.userType === 'branch_manager') {
+          console.log('🔄 Re-checking floors and sections availability after floor addition...')
+          this.hasFloorsSections = await this.checkFloorsAndSections()
+          
+          if (this.hasFloorsSections) {
+            console.log('✅ Floors and sections are now available!')
+            this.showMessage('Floor added successfully! You can now add stalls.', 'success', 'add', 'floor')
+          } else {
+            console.log('⚠️ Still missing floors or sections')
+            this.showMessage('Floor added successfully!', 'success', 'add', 'floor')
+          }
+        }
       } catch (error) {
         console.error('Error handling new floor:', error)
-        // Only show error messages
         this.showMessage('Error processing new floor', 'error', 'add', 'floor')
       }
     },
@@ -571,9 +716,22 @@ export default {
     async handleSectionAdded(newSectionData) {
       try {
         console.log('Handling new section data:', newSectionData)
+        
+        // Re-check floors and sections availability after adding a section
+        if (this.currentUser.userType === 'branch_manager') {
+          console.log('🔄 Re-checking floors and sections availability after section addition...')
+          this.hasFloorsSections = await this.checkFloorsAndSections()
+          
+          if (this.hasFloorsSections) {
+            console.log('✅ Floors and sections are now available!')
+            this.showMessage('Section added successfully! You can now add stalls.', 'success', 'add', 'section')
+          } else {
+            console.log('⚠️ Still missing floors or sections')
+            this.showMessage('Section added successfully!', 'success', 'add', 'section')
+          }
+        }
       } catch (error) {
         console.error('Error handling new section:', error)
-        // Only show error messages
         this.showMessage('Error processing new section', 'error', 'add', 'section')
       }
     },
@@ -581,6 +739,26 @@ export default {
     // Handle refresh request from child components
     async onRefreshStalls() {
       await this.fetchStalls()
+    },
+
+    // Handle refresh data request (floors/sections) from child components
+    async handleRefreshData() {
+      try {
+        console.log('🔄 Handling refresh data request - re-checking floors and sections...')
+        
+        // Re-check floors and sections availability
+        if (this.currentUser.userType === 'branch_manager') {
+          this.hasFloorsSections = await this.checkFloorsAndSections()
+          
+          if (this.hasFloorsSections) {
+            console.log('✅ Floors and sections are now available!')
+          } else {
+            console.log('⚠️ Still missing floors or sections')
+          }
+        }
+      } catch (error) {
+        console.error('Error handling refresh data:', error)
+      }
     },
 
     // Message handling with enhanced display options

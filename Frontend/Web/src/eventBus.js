@@ -55,4 +55,7 @@ export const EVENTS = {
   STALL_UPDATED: "stall:updated",
   STALL_DELETED: "stall:deleted",
   STALL_TYPES_CHANGED: "stall:types:changed",
+  FLOOR_ADDED: "floor:added",
+  SECTION_ADDED: "section:added",
+  FLOORS_SECTIONS_UPDATED: "floors:sections:updated",
 };
