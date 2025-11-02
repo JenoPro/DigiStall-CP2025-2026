@@ -1,5 +1,17 @@
 <template>
   <v-container fluid class="login-container">
+    <!-- Back Button - Upper Left -->
+    <v-btn
+      class="back-btn"
+      @click="goToLandingPage"
+      :disabled="loading"
+      variant="elevated"
+      size="large"
+      prepend-icon="mdi-arrow-left"
+    >
+      Back
+    </v-btn>
+
     <v-row class="fill-height" no-gutters>
       <!-- Left Side - Logo and Title -->
       <v-col cols="12" md="8" class="left-section d-flex align-center justify-center">
@@ -116,20 +128,6 @@
                 >
                   <v-icon left small>mdi-help-circle</v-icon>
                   Forgot Password?
-                </v-btn>
-              </div>
-
-              <!-- Go to Web Button -->
-              <div class="text-center mb-3">
-                <v-btn
-                  class="go-web-btn"
-                  size="large"
-                  @click="goToLandingPage"
-                  :disabled="loading"
-                  block
-                >
-                  <v-icon left>mdi-web</v-icon>
-                  Go to Web
                 </v-btn>
               </div>
             </v-form>
