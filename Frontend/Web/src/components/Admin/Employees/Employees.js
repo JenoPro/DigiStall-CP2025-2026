@@ -179,44 +179,51 @@ export default {
           throw new Error("Authentication required. Please login again.");
         }
 
-        // Use cached data with 5-minute expiration
-        const data = await dataCacheService.cachedFetch('employees', async () => {
-          console.log("🔑 Fetching employees with authentication...");
-          const response = await fetch(`${this.apiBaseUrl}/employees`, {
+        // Get current user info for branch verification
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+        const userBranchId = currentUser.branchId || currentUser.branch_id || currentUser.branch?.id;
+
+        console.log("🔑 Fetching employees with authentication...");
+        console.log("🏢 Current user branch ID:", userBranchId);
+        
+        // Use cached fetch with proper parameters
+        const url = `${this.apiBaseUrl}/employees`;
+        const data = await dataCacheService.cachedFetch(
+          url,
+          {
             method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-          });
+          },
+          5 * 60 * 1000 // 5 minutes cache in milliseconds
+        );
 
-          console.log("📡 Employees API response status:", response.status);
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              // Clear session and redirect to login
-              sessionStorage.clear();
-              this.$router.push("/login");
-              throw new Error("Session expired. Please login again.");
-            } else if (response.status === 403) {
-              throw new Error(
-                "Access denied. You do not have permission to view employees."
-              );
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          return await response.json();
-        }, 5); // 5 minutes cache
+        console.log("📡 Employees API response:", data);
 
         if (data.success) {
-          this.employees = data.data || data.employees || [];
-          console.log(`✅ Loaded ${this.employees.length} employees`);
+          let employees = data.data || data.employees || [];
+          
+          // Client-side verification: Filter employees to ensure they belong to current user's branch
+          if (userBranchId) {
+            const originalCount = employees.length;
+            employees = employees.filter(emp => {
+              const empBranchId = emp.branch_id || emp.branchId;
+              return empBranchId && parseInt(empBranchId) === parseInt(userBranchId);
+            });
+            
+            if (originalCount !== employees.length) {
+              console.warn(`⚠️ Filtered out ${originalCount - employees.length} employees from different branches`);
+            }
+          }
+          
+          this.employees = employees;
+          console.log(`✅ Loaded ${this.employees.length} employees for branch ${userBranchId}`);
 
           // Provide user feedback based on role
-          const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
           if (this.employees.length === 0) {
-            if (currentUser.userType === "branch-manager") {
+            if (currentUser.userType === "branch_manager") {
               console.log(
                 "ℹ️  No employees found - Branch manager has not created any employees yet"
               );
@@ -224,9 +231,9 @@ export default {
               console.log("ℹ️  No employees found");
             }
           } else {
-            if (currentUser.userType === "branch-manager") {
+            if (currentUser.userType === "branch_manager") {
               console.log(
-                `ℹ️  Showing ${this.employees.length} employees created by this branch manager`
+                `ℹ️  Showing ${this.employees.length} employees for branch ${userBranchId}`
               );
             }
           }
@@ -235,11 +242,25 @@ export default {
         }
       } catch (error) {
         console.error("Error fetching employees:", error);
-        this.$emit(
-          "show-snackbar",
-          `Failed to load employees: ${error.message}`,
-          "error"
-        );
+        
+        // Clear cache and retry once on auth errors
+        if (error.message.includes("Authentication") || error.message.includes("401")) {
+          console.log("🔄 Authentication error - clearing cache and retrying...");
+          dataCacheService.invalidatePattern("employees");
+          
+          // Don't retry to avoid infinite loops
+          this.$emit(
+            "show-snackbar",
+            "Authentication expired. Please login again.",
+            "error"
+          );
+        } else {
+          this.$emit(
+            "show-snackbar",
+            `Failed to load employees: ${error.message}`,
+            "error"
+          );
+        }
       }
     },
 
@@ -450,7 +471,7 @@ export default {
           this.closeEmployeeDialog();
           
           // Clear cache and refresh data
-          dataCacheService.clearCache('employees');
+          dataCacheService.invalidatePattern('employees');
           await this.fetchEmployees();
         } else {
           throw new Error(data.message);
@@ -531,7 +552,7 @@ export default {
           this.closePermissionsDialog();
           
           // Clear cache and refresh data
-          dataCacheService.clearCache('employees');
+          dataCacheService.invalidatePattern('employees');
           await this.fetchEmployees();
         } else {
           throw new Error(data.message);
@@ -593,7 +614,7 @@ export default {
           this.$emit("show-snackbar", `Employee ${action} successfully!`, "success");
           
           // Clear cache and refresh data
-          dataCacheService.clearCache('employees');
+          dataCacheService.invalidatePattern('employees');
           await this.fetchEmployees();
         } else {
           throw new Error(data.message);
